@@ -40,6 +40,18 @@ export async function addSpider(formData: FormData) {
 
 export async function deleteSpider(id: string) {
   const supabase = await createClient()
+
+  const { data: spider } = await supabase
+    .from('spiders')
+    .select('image_url')
+    .eq('id', id)
+    .single()
+
+  if (spider?.image_url) {
+    const path = spider.image_url.split('/spider-images/')[1]
+    if (path) await supabase.storage.from('spider-images').remove([path])
+  }
+
   const { error } = await supabase.from('spiders').delete().eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/')

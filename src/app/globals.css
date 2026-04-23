@@ -48,6 +48,12 @@ button {
   font-family: var(--font-body);
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg3);
+  opacity: 0.5;
+}
+
 /* Responsive spider grid */
 .spider-grid {
   display: grid;
