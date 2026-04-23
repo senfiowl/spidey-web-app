@@ -14,6 +14,7 @@ export default async function HomePage() {
   const list: Spider[] = spiders ?? []
   const femaleCount = list.filter(s => s.sex === 'Weibchen').length
   const maleCount = list.filter(s => s.sex === 'Männchen').length
+  const unknownCount = list.filter(s => s.sex === 'Unbestimmt').length
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 32px' }}>
@@ -38,7 +39,7 @@ export default async function HomePage() {
             fontFamily: 'var(--font-body)',
           }}
         >
-          {list.length} Spinnen · {femaleCount} Weibchen · {maleCount} Männchen
+          {list.length} Spinnen · {femaleCount} Weibchen · {maleCount} Männchen{unknownCount > 0 ? ` · ${unknownCount} Unbestimmt` : ''}
         </p>
       </div>
       <SpiderGrid spiders={list} />

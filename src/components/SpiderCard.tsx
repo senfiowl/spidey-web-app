@@ -140,9 +140,9 @@ export default function SpiderCard({ spider, isAdmin }: Props) {
           }}
         >
           <span style={{ fontSize: '13px' }}>
-            {spider.sex === 'Weibchen' ? '♀' : '♂'}
+            {spider.sex === 'Weibchen' ? '♀' : spider.sex === 'Männchen' ? '♂' : '?'}
           </span>
-          {spider.sex === 'Weibchen' ? 'Weibchen' : 'Männchen'}
+          {spider.sex === 'Weibchen' ? 'Weibchen' : spider.sex === 'Männchen' ? 'Männchen' : 'Unbestimmt'}
         </div>
       </div>
 

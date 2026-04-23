@@ -10,6 +10,7 @@ const FILTERS = [
   ['all', 'Alle'],
   ['Weibchen', '♀ Weibchen'],
   ['Männchen', '♂ Männchen'],
+  ['Unbestimmt', '? Unbestimmt'],
   ['hungry', 'Hungrig > 10 T.'],
 ] as const
 

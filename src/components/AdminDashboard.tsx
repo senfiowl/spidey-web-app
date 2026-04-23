@@ -284,7 +284,7 @@ export default function AdminDashboard({ spiders: initial }: { spiders: Spider[]
                 >
                   <option value="Weibchen">Weibchen</option>
                   <option value="Männchen">Männchen</option>
-                  <option value="Unbekannt">Unbekannt</option>
+                  <option value="Unbestimmt">Unbestimmt</option>
                 </select>
               </Field>
               <Field label="Alter">

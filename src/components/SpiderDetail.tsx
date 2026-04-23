@@ -333,7 +333,7 @@ function ViewMode({
                 textTransform: 'uppercase',
               }}
             >
-              {spider.sex === 'Weibchen' ? '♀ Weibchen' : '♂ Männchen'}
+              {spider.sex === 'Weibchen' ? '♀ Weibchen' : spider.sex === 'Männchen' ? '♂ Männchen' : '? Unbestimmt'}
             </span>
             <span
               style={{
@@ -961,7 +961,7 @@ function EditMode({
               <select name="sex" defaultValue={spider.sex} style={inputStyle}>
                 <option value="Weibchen">Weibchen</option>
                 <option value="Männchen">Männchen</option>
-                <option value="Unbekannt">Unbekannt</option>
+                <option value="Unbestimmt">Unbestimmt</option>
               </select>
             </Field>
             <Field label="Alter">

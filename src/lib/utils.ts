@@ -17,6 +17,7 @@ export function randomOklchColor(): string {
 }
 
 export function getSpiderColor(sex: string): string {
-  if (sex === 'Männchen') return 'oklch(0.62 0.18 225)' // slate-blue
-  return 'oklch(0.68 0.15 345)'                         // rose (Weibchen + Unbekannt)
+  if (sex === 'Männchen') return 'oklch(0.62 0.18 225)'  // slate-blue
+  if (sex === 'Weibchen') return 'oklch(0.68 0.15 345)'  // rose
+  return 'oklch(0.60 0.08 90)'                           // neutral grey-green (Unbestimmt)
 }
