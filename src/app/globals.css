@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg:           oklch(0.18 0.025 150);
+  --bg2:          oklch(0.22 0.03 148);
+  --bg3:          oklch(0.27 0.035 148);
+  --card-bg:      oklch(0.20 0.028 150);
+  --card-border:  oklch(0.34 0.04 148);
+  --accent:       oklch(0.62 0.17 145);
+  --accent2:      oklch(0.75 0.14 75);
+  --fg:           oklch(0.96 0.01 120);
+  --fg2:          oklch(0.74 0.02 140);
+  --fg3:          oklch(0.52 0.02 140);
+  --danger:       oklch(0.65 0.18 25);
+  --font-head:    'Cormorant Garamond', Georgia, serif;
+  --font-body:    'Space Grotesk', sans-serif;
+  --radius:       4px;
+  --card-radius:  6px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: var(--font-body);
+}
+
+/* Responsive spider grid */
+.spider-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1280px) {
+  .spider-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .spider-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .spider-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive admin layout */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive detail hero */
+.detail-hero {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 40px;
+  margin-bottom: 36px;
+  align-items: center;
+}
+
+@media (max-width: 800px) {
+  .detail-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive detail info grid */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

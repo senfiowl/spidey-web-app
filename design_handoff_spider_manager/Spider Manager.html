@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spidey – Spinnen Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Grotesk:wght@300;400;500;600&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--fg); transition: background 0.4s, color 0.4s; }
+
+  /* THEME A – Terrarium */
+  .theme-a {
+    --bg: oklch(0.08 0.025 150);
+    --bg2: oklch(0.11 0.03 148);
+    --bg3: oklch(0.14 0.035 148);
+    --card-bg: oklch(0.10 0.028 150);
+    --card-border: oklch(0.20 0.04 148);
+    --accent: oklch(0.58 0.16 145);
+    --accent2: oklch(0.72 0.13 75);
+    --fg: oklch(0.92 0.01 120);
+    --fg2: oklch(0.65 0.02 140);
+    --fg3: oklch(0.40 0.02 140);
+    --danger: oklch(0.6 0.18 25);
+    --font-head: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'Space Grotesk', sans-serif;
+    --radius: 4px;
+    --card-radius: 6px;
+  }
+
+  /* THEME B – Wissenschaftlich */
+  .theme-b {
+    --bg: oklch(0.05 0.005 200);
+    --bg2: oklch(0.09 0.008 200);
+    --bg3: oklch(0.13 0.01 200);
+    --card-bg: oklch(0.08 0.007 200);
+    --card-border: oklch(0.18 0.015 200);
+    --accent: oklch(0.62 0.22 145);
+    --accent2: oklch(0.62 0.22 180);
+    --fg: oklch(0.90 0.015 145);
+    --fg2: oklch(0.58 0.025 145);
+    --fg3: oklch(0.35 0.015 145);
+    --danger: oklch(0.62 0.22 145);
+    --font-head: 'Space Mono', monospace;
+    --font-body: 'DM Sans', sans-serif;
+    --radius: 0px;
+    --card-radius: 2px;
+  }
+
+  /* Tweaks panel */
+  #tweaks-panel {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 20px;
+    width: 260px;
+    z-index: 9999;
+    font-family: var(--font-body);
+    color: var(--fg);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  }
+  #tweaks-panel.open { display: block; }
+  #tweaks-panel h3 { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg2); margin-bottom: 16px; }
+  .tweak-row { margin-bottom: 14px; }
+  .tweak-row label { display: block; font-size: 11px; color: var(--fg2); margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .tweak-btn { background: var(--bg2); border: 1px solid var(--card-border); color: var(--fg); padding: 6px 12px; cursor: pointer; font-family: var(--font-body); font-size: 12px; margin-right: 6px; border-radius: var(--radius); transition: border-color 0.2s; }
+  .tweak-btn.active { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body class="theme-a">
+
+<div id="root"></div>
+<div id="tweaks-panel">
+  <h3>Tweaks</h3>
+  <div class="tweak-row">
+    <label>Design-Variante</label>
+    <button class="tweak-btn active" id="btn-a" onclick="setTheme('a')">A – Terrarium</button>
+    <button class="tweak-btn" id="btn-b" onclick="setTheme('b')">B – Labor</button>
+  </div>
+  <div class="tweak-row">
+    <label>Karten-Dichte</label>
+    <button class="tweak-btn active" id="btn-grid3" onclick="setGrid(3)">3 Sp.</button>
+    <button class="tweak-btn" id="btn-grid4" onclick="setGrid(4)">4 Sp.</button>
+    <button class="tweak-btn" id="btn-grid5" onclick="setGrid(5)">5 Sp.</button>
+  </div>
+</div>
+
+<script>
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "a",
+  "gridCols": 4
+}/*EDITMODE-END*/;
+let currentTheme = TWEAK_DEFAULTS.theme;
+let currentGrid = TWEAK_DEFAULTS.gridCols;
+
+function setTheme(t) {
+  currentTheme = t;
+  document.body.className = 'theme-' + t;
+  document.getElementById('btn-a').classList.toggle('active', t === 'a');
+  document.getElementById('btn-b').classList.toggle('active', t === 'b');
+  window.__setGrid && window.__setGrid(currentGrid);
+  window.__setTheme && window.__setTheme(t);
+  window.parent.postMessage({type:'__edit_mode_set_keys', edits:{theme:t}}, '*');
+}
+function setGrid(n) {
+  currentGrid = n;
+  [3,4,5].forEach(x => document.getElementById('btn-grid'+x).classList.toggle('active', x===n));
+  window.__setGrid && window.__setGrid(n);
+  window.parent.postMessage({type:'__edit_mode_set_keys', edits:{gridCols:n}}, '*');
+}
+
+window.addEventListener('message', e => {
+  if (e.data?.type === '__activate_edit_mode') document.getElementById('tweaks-panel').classList.add('open');
+  if (e.data?.type === '__deactivate_edit_mode') document.getElementById('tweaks-panel').classList.remove('open');
+});
+window.parent.postMessage({type:'__edit_mode_available'}, '*');
+</script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const INITIAL_SPIDERS = [
+  {
+    id: 1, name: "Helene", species: "Theraphosa blondi", commonName: "Goliath Bird Eater",
+    origin: "Venezuela, Brasilien, Guyana", habitat: "Tropischer Regenwald", size: { body: "13 cm", span: "30 cm" },
+    toxicity: "mild", sex: "Weibchen", age: "6 Jahre",
+    conditions: { temp: "26–28 °C", humidity: "80–85 %" },
+    lastFed: "2026-04-18", molts: ["2023-03", "2024-01", "2024-11", "2025-09"],
+    notes: "Helene ist sehr scheu und versteckt sich tagsüber gern. Abends aktiver. Liebt große Grillen.",
+    color: "oklch(0.42 0.08 65)"
+  },
+  {
+    id: 2, name: "Marina", species: "Caribena versicolor", commonName: "Antilles Pinktoe",
+    origin: "Martinique (Karibik)", habitat: "Baumkronen, tropisch", size: { body: "6 cm", span: "14 cm" },
+    toxicity: "sehr mild", sex: "Weibchen", age: "2 Jahre",
+    conditions: { temp: "24–26 °C", humidity: "75–85 %" },
+    lastFed: "2026-04-20", molts: ["2025-02", "2025-10"],
+    notes: "Marina ist wunderschön – türkis als Jungtier, violett-rot als Adulte. Baut komplexe Röhrennetze.",
+    color: "oklch(0.55 0.18 280)"
+  },
+  {
+    id: 3, name: "Greta", species: "Brachypelma hamorii", commonName: "Mexican Red Knee",
+    origin: "Mexiko", habitat: "Halbwüste, Trockensavanne", size: { body: "8 cm", span: "16 cm" },
+    toxicity: "mild", sex: "Weibchen", age: "8 Jahre",
+    conditions: { temp: "22–26 °C", humidity: "50–60 %" },
+    lastFed: "2026-04-15", molts: ["2022-06", "2023-08", "2024-10"],
+    notes: "Sehr ruhige, handzahme Vogelspinne. Ideal für Anfänger. Frisst gerne Heuschrecken.",
+    color: "oklch(0.58 0.14 48)"
+  },
+  {
+    id: 4, name: "Nyx", species: "Chromatopelma cyaneopubescens", commonName: "Green Bottle Blue",
+    origin: "Venezuela (Halbinsel Paraguaná)", habitat: "Trockengebüsch", size: { body: "7 cm", span: "15 cm" },
+    toxicity: "mild", sex: "Männchen", age: "3 Jahre",
+    conditions: { temp: "24–28 °C", humidity: "50–65 %" },
+    lastFed: "2026-04-19", molts: ["2024-07", "2025-04"],
+    notes: "Nyx ist die farbenprächtiste im Bestand. Sehr aktiv, baut viel Netz.",
+    color: "oklch(0.52 0.20 195)"
+  },
+  {
+    id: 5, name: "Ebony", species: "Grammostola pulchra", commonName: "Brazilian Black",
+    origin: "Brasilien, Uruguay", habitat: "Grasland, Pampa", size: { body: "8 cm", span: "18 cm" },
+    toxicity: "sehr mild", sex: "Weibchen", age: "12 Jahre",
+    conditions: { temp: "22–25 °C", humidity: "60–70 %" },
+    lastFed: "2026-04-10", molts: ["2023-11", "2025-01"],
+    notes: "Ebony ist samtartig schwarz – eine der schönsten Vogelspinnen überhaupt. Langsam wachsend.",
+    color: "oklch(0.22 0.01 200)"
+  },
+  {
+    id: 6, name: "Persephone", species: "Poecilotheria metallica", commonName: "Gooty Sapphire",
+    origin: "Indien (Andhra Pradesh)", habitat: "Baumhöhlen, Trockenwald", size: { body: "7 cm", span: "20 cm" },
+    toxicity: "mittel", sex: "Weibchen", age: "4 Jahre",
+    conditions: { temp: "24–28 °C", humidity: "70–75 %" },
+    lastFed: "2026-04-17", molts: ["2024-03", "2025-02"],
+    notes: "Hochgradig geschützte Art. Sehr schnell und defensiv – nur für erfahrene Halter.",
+    color: "oklch(0.48 0.20 250)"
+  },
+  {
+    id: 7, name: "Rosie", species: "Grammostola rosea", commonName: "Chilean Rose",
+    origin: "Chile, Bolivien, Argentinien", habitat: "Wüste, Atacama-Rand", size: { body: "7 cm", span: "15 cm" },
+    toxicity: "sehr mild", sex: "Weibchen", age: "15 Jahre",
+    conditions: { temp: "20–24 °C", humidity: "40–55 %" },
+    lastFed: "2026-03-28", molts: ["2022-05", "2024-06"],
+    notes: "Rosie fastet seit einem Jahr – völlig normal für die Art. Extrem langlebig.",
+    color: "oklch(0.60 0.10 5)"
+  },
+  {
+    id: 8, name: "Kali", species: "Hapalopus sp. Colombia", commonName: "Pumpkin Patch",
+    origin: "Kolumbien", habitat: "Grasland, Zwergform", size: { body: "3.5 cm", span: "8 cm" },
+    toxicity: "mild", sex: "Weibchen", age: "2 Jahre",
+    conditions: { temp: "24–26 °C", humidity: "65–75 %" },
+    lastFed: "2026-04-21", molts: ["2025-06", "2025-12"],
+    notes: "Mini-Vogelspinne mit wunderschönem Muster – orange Flecken auf schwarzem Grund.",
+    color: "oklch(0.65 0.18 55)"
+  },
+  {
+    id: 9, name: "Athena", species: "Avicularia avicularia", commonName: "Common Pinktoe",
+    origin: "Südamerika (weit verbreitet)", habitat: "Regenwaldkronen", size: { body: "6 cm", span: "13 cm" },
+    toxicity: "sehr mild", sex: "Weibchen", age: "3 Jahre",
+    conditions: { temp: "24–27 °C", humidity: "75–85 %" },
+    lastFed: "2026-04-19", molts: ["2024-09", "2025-07"],
+    notes: "Springt gern – Deckel gut sichern! Gesellige Art, baut große Gespinstsäcke.",
+    color: "oklch(0.50 0.09 140)"
+  },
+  {
+    id: 10, name: "Shadow", species: "Lasiodora parahybana", commonName: "Brazilian Salmon Pink",
+    origin: "Brasilien (Paraíba)", habitat: "Atlantischer Regenwald", size: { body: "10 cm", span: "26 cm" },
+    toxicity: "mild", sex: "Männchen", age: "4 Jahre",
+    conditions: { temp: "24–27 °C", humidity: "70–80 %" },
+    lastFed: "2026-04-16", molts: ["2024-04", "2025-03"],
+    notes: "Shadow ist ein echter Fraßteufel. Einer der größten Tarantula-Arten nach dem Goliath.",
+    color: "oklch(0.38 0.06 60)"
+  },
+  {
+    id: 11, name: "Luna", species: "Nhandu chromatus", commonName: "White Striped Birdeater",
+    origin: "Brasilien, Paraguay", habitat: "Savanne, Cerrado", size: { body: "8 cm", span: "18 cm" },
+    toxicity: "mittel", sex: "Weibchen", age: "3 Jahre",
+    conditions: { temp: "24–27 °C", humidity: "65–75 %" },
+    lastFed: "2026-04-14", molts: ["2024-08", "2025-06"],
+    notes: "Luna ist defensiv und schießt gern Brennhaare. Trotzdem faszinierend zu beobachten.",
+    color: "oklch(0.45 0.03 200)"
+  },
+  {
+    id: 12, name: "Fauna", species: "Acanthoscurria geniculata", commonName: "Giant White Knee",
+    origin: "Brasilien (Amazonas)", habitat: "Tropischer Regenwald", size: { body: "9 cm", span: "22 cm" },
+    toxicity: "mild–mittel", sex: "Weibchen", age: "5 Jahre",
+    conditions: { temp: "25–28 °C", humidity: "70–80 %" },
+    lastFed: "2026-04-18", molts: ["2023-07", "2024-06", "2025-05"],
+    notes: "Fauna ist sehr aktiv und gräbt gern. Braucht viel Substrat zum Buddeln.",
+    color: "oklch(0.35 0.04 155)"
+  }
+];
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function daysSince(dateStr) {
+  const d = new Date(dateStr);
+  const now = new Date('2026-04-23');
+  return Math.floor((now - d) / 86400000);
+}
+
+function toxBadgeColor(tox) {
+  if (tox.includes("sehr mild")) return "oklch(0.62 0.16 145)";
+  if (tox.includes("mild")) return "oklch(0.65 0.14 95)";
+  if (tox.includes("mittel")) return "oklch(0.65 0.15 55)";
+  return "oklch(0.60 0.18 25)";
+}
+
+// ── SPIDER CARD PLACEHOLDER ───────────────────────────────────────────────────
+function SpiderPlaceholder({ color, name }) {
+  return (
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={{width:'100%',height:'100%'}}>
+      <defs>
+        <radialGradient id={`g${name}`} cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35"/>
+          <stop offset="100%" stopColor="transparent"/>
+        </radialGradient>
+      </defs>
+      <rect width="200" height="200" fill="oklch(0.07 0.02 148)"/>
+      {/* subtle web pattern */}
+      {[0,1,2,3].map(i => (
+        <line key={i} x1="100" y1="100" x2={100+90*Math.cos(i*Math.PI/4)} y2={100+90*Math.sin(i*Math.PI/4)}
+          stroke={color} strokeOpacity="0.15" strokeWidth="0.5"/>
+      ))}
+      {[30,55,80].map(r => (
+        <circle key={r} cx="100" cy="100" r={r} fill="none" stroke={color} strokeOpacity="0.10" strokeWidth="0.5"/>
+      ))}
+      {/* spider body */}
+      <ellipse cx="100" cy="108" rx="22" ry="18" fill={color} fillOpacity="0.85"/>
+      <ellipse cx="100" cy="85" rx="14" ry="12" fill={color} fillOpacity="0.75"/>
+      {/* legs */}
+      {[-1,1].map(s => [1,2,3,4].map(l => {
+        const angle = s*(35 + l*18) * Math.PI/180;
+        const startX = 100 + s*20;
+        const startY = 100 + (l-2)*6;
+        return <line key={`${s}${l}`}
+          x1={startX} y1={startY}
+          x2={startX + s*50*Math.cos(angle)} y2={startY + 50*Math.abs(Math.sin(angle)) + 10}
+          stroke={color} strokeOpacity="0.7" strokeWidth="2.5" strokeLinecap="round"/>
+      }))}
+      {/* eyes */}
+      {[-5,-2,2,5].map(x => <circle key={x} cx={100+x} cy={80} r="1.8" fill="oklch(0.9 0.02 80)" fillOpacity="0.9"/>)}
+      <rect width="200" height="200" fill={`url(#g${name})`}/>
+    </svg>
+  );
+}
+
+// ── NAVBAR ────────────────────────────────────────────────────────────────────
+function Navbar({ page, setPage, isAdmin }) {
+  const s = navStyles;
+  return (
+    <nav style={s.nav}>
+      <div style={s.brand} onClick={() => setPage('home')} role="button">
+        <svg viewBox="0 0 28 28" width="22" height="22" style={{marginRight:8}}>
+          <circle cx="14" cy="14" r="5" fill="var(--accent)" opacity="0.9"/>
+          {[0,1,2,3].map(i=><line key={i} x1="14" y1="14" x2={14+12*Math.cos(i*Math.PI/4)} y2={14+12*Math.sin(i*Math.PI/4)} stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1"/>)}
+          {[6,10].map(r=><circle key={r} cx="14" cy="14" r={r} fill="none" stroke="var(--accent)" strokeOpacity="0.3" strokeWidth="0.8"/>)}
+        </svg>
+        <span style={s.brandName}>SPIDEY</span>
+      </div>
+      <div style={s.links}>
+        <button style={{...s.link, ...(page==='home'?s.active:{})}} onClick={()=>setPage('home')}>Übersicht</button>
+        {isAdmin && <button style={{...s.link, ...(page==='admin'?s.active:{})}} onClick={()=>setPage('admin')}>Admin</button>}
+        {!isAdmin && <button style={{...s.link, ...(page==='login'?s.active:{})}} onClick={()=>setPage('login')}>Admin Login</button>}
+        {isAdmin && <button style={{...s.link, color:'var(--fg3)'}} onClick={()=>window.__logout && window.__logout()}>Logout</button>}
+      </div>
+    </nav>
+  );
+}
+const navStyles = {
+  nav: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 32px', height:'60px', background:'var(--bg)', borderBottom:'1px solid var(--card-border)', position:'sticky', top:0, zIndex:100 },
+  brand: { display:'flex', alignItems:'center', cursor:'pointer', gap:0 },
+  brandName: { fontFamily:'var(--font-head)', fontSize:'18px', fontWeight:600, letterSpacing:'0.18em', color:'var(--fg)' },
+  links: { display:'flex', gap:4 },
+  link: { background:'none', border:'none', color:'var(--fg2)', fontFamily:'var(--font-body)', fontSize:'13px', letterSpacing:'0.06em', padding:'6px 14px', cursor:'pointer', borderRadius:'var(--radius)', transition:'color 0.2s' },
+  active: { color:'var(--accent)', background:'var(--bg2)' }
+};
+
+// ── HOME PAGE ─────────────────────────────────────────────────────────────────
+function HomePage({ spiders, setPage, setSelectedSpider, gridCols }) {
+  const s = homeStyles;
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  
+  const filtered = spiders.filter(sp => {
+    const matchSearch = sp.name.toLowerCase().includes(search.toLowerCase()) ||
+      sp.species.toLowerCase().includes(search.toLowerCase()) ||
+      sp.commonName.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'all' || sp.sex === filter ||
+      (filter === 'hungry' && daysSince(sp.lastFed) > 10);
+    return matchSearch && matchFilter;
+  });
+
+  return (
+    <div style={s.page}>
+      <div style={s.header}>
+        <h1 style={s.title}>Meine Sammlung</h1>
+        <p style={s.sub}>{spiders.length} Spinnen · {spiders.filter(x=>x.sex==='Weibchen').length} Weibchen · {spiders.filter(x=>x.sex==='Männchen').length} Männchen</p>
+      </div>
+      <div style={s.controls}>
+        <input style={s.search} placeholder="Suche nach Name, Art …" value={search} onChange={e=>setSearch(e.target.value)}/>
+        <div style={s.filters}>
+          {[['all','Alle'],['Weibchen','♀ Weibchen'],['Männchen','♂ Männchen'],['hungry','Hungrig > 10 T.']].map(([v,l])=>(
+            <button key={v} style={{...s.filterBtn, ...(filter===v?s.filterActive:{})}} onClick={()=>setFilter(v)}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{...s.grid, gridTemplateColumns:`repeat(${gridCols}, 1fr)`}}>
+        {filtered.map(spider => (
+          <SpiderCard key={spider.id} spider={spider} onClick={()=>{ setSelectedSpider(spider); setPage('detail'); }}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+const homeStyles = {
+  page: { maxWidth:'1400px', margin:'0 auto', padding:'40px 32px' },
+  header: { marginBottom:'32px' },
+  title: { fontFamily:'var(--font-head)', fontSize:'42px', fontWeight:300, color:'var(--fg)', letterSpacing:'-0.01em', marginBottom:'6px' },
+  sub: { color:'var(--fg3)', fontSize:'13px', letterSpacing:'0.08em', fontFamily:'var(--font-body)' },
+  controls: { display:'flex', gap:'16px', marginBottom:'32px', alignItems:'center', flexWrap:'wrap' },
+  search: { background:'var(--bg2)', border:'1px solid var(--card-border)', color:'var(--fg)', fontFamily:'var(--font-body)', fontSize:'13px', padding:'9px 16px', borderRadius:'var(--radius)', outline:'none', width:'240px' },
+  filters: { display:'flex', gap:'6px', flexWrap:'wrap' },
+  filterBtn: { background:'var(--bg2)', border:'1px solid var(--card-border)', color:'var(--fg2)', fontFamily:'var(--font-body)', fontSize:'12px', padding:'7px 14px', borderRadius:'var(--radius)', cursor:'pointer', letterSpacing:'0.04em', transition:'all 0.2s' },
+  filterActive: { borderColor:'var(--accent)', color:'var(--accent)', background:'var(--bg3)' },
+  grid: { display:'grid', gap:'20px' }
+};
+
+// ── SPIDER CARD ───────────────────────────────────────────────────────────────
+function SpiderCard({ spider, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  const days = daysSince(spider.lastFed);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>setHovered(false)}
+      style={{
+        background: 'var(--card-bg)',
+        border: `1px solid ${hovered ? spider.color : 'var(--card-border)'}`,
+        borderRadius: 'var(--card-radius)',
+        overflow:'hidden',
+        cursor:'pointer',
+        transition:'border-color 0.25s, transform 0.2s, box-shadow 0.2s',
+        transform: hovered ? 'translateY(-3px)' : 'none',
+        boxShadow: hovered ? `0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px ${spider.color}22` : '0 2px 8px rgba(0,0,0,0.3)',
+      }}
+    >
+      <div style={{aspectRatio:'1/1', overflow:'hidden', position:'relative'}}>
+        <SpiderPlaceholder color={spider.color} name={spider.name}/>
+        <div style={{position:'absolute',bottom:0,left:0,right:0,height:'50%',background:'linear-gradient(transparent, var(--card-bg))'}}/>
+        <div style={{position:'absolute',top:10,right:10,background:'var(--bg)',border:'1px solid var(--card-border)',borderRadius:'3px',padding:'2px 8px',fontSize:'10px',fontFamily:'var(--font-body)',color:spider.color,letterSpacing:'0.08em'}}>
+          {spider.sex === 'Weibchen' ? '♀' : '♂'}
+        </div>
+      </div>
+      <div style={{padding:'14px 16px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}}>
+          <h2 style={{fontFamily:'var(--font-head)',fontSize:'22px',fontWeight:400,color:'var(--fg)'}}>{spider.name}</h2>
+          <span style={{fontSize:'10px',color: days > 10 ? 'var(--accent2)' : 'var(--fg3)',fontFamily:'var(--font-body)',whiteSpace:'nowrap',marginTop:'4px'}}>
+            {days}T. seit Fütterung
+          </span>
+        </div>
+        <p style={{fontFamily:'var(--font-body)',fontSize:'11px',color:'var(--fg2)',marginBottom:'3px',letterSpacing:'0.03em',fontStyle:'italic'}}>{spider.species}</p>
+        <p style={{fontFamily:'var(--font-body)',fontSize:'11px',color:'var(--fg3)',marginBottom:'12px',letterSpacing:'0.04em'}}>{spider.commonName}</p>
+        <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+          <span style={{fontSize:'10px',padding:'2px 8px',background:'var(--bg)',border:'1px solid var(--card-border)',borderRadius:'2px',color:'var(--fg2)',letterSpacing:'0.05em',fontFamily:'var(--font-body)'}}>
+            ⧖ {spider.age}
+          </span>
+          <span style={{fontSize:'10px',padding:'2px 8px',background:'var(--bg)',border:'1px solid',borderColor:toxBadgeColor(spider.toxicity),borderRadius:'2px',color:toxBadgeColor(spider.toxicity),letterSpacing:'0.05em',fontFamily:'var(--font-body)'}}>
+            ◈ {spider.toxicity}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── DETAIL PAGE ───────────────────────────────────────────────────────────────
+function DetailPage({ spider, setPage }) {
+  const s = detailStyles;
+  if (!spider) return null;
+  return (
+    <div style={s.page}>
+      <button style={s.back} onClick={()=>setPage('home')}>← Zurück zur Übersicht</button>
+      <div style={s.hero}>
+        <div style={s.heroImage}>
+          <SpiderPlaceholder color={spider.color} name={spider.name+'d'}/>
+          <div style={{position:'absolute',bottom:0,left:0,right:0,height:'40%',background:'linear-gradient(transparent, var(--bg))'}}/>
+        </div>
+        <div style={s.heroInfo}>
+          <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'8px'}}>
+            <span style={{fontSize:'11px',color:'var(--fg3)',letterSpacing:'0.12em',fontFamily:'var(--font-body)',textTransform:'uppercase'}}>
+              {spider.sex === 'Weibchen' ? '♀ Weibchen' : '♂ Männchen'}
+            </span>
+            <span style={{fontSize:'10px',padding:'2px 10px',border:'1px solid',borderColor:toxBadgeColor(spider.toxicity),borderRadius:'2px',color:toxBadgeColor(spider.toxicity),fontFamily:'var(--font-body)'}}>
+              {spider.toxicity}
+            </span>
+          </div>
+          <h1 style={s.name}>{spider.name}</h1>
+          <p style={s.species}>{spider.species}</p>
+          <p style={s.commonName}>{spider.commonName}</p>
+          <div style={s.statsRow}>
+            <Stat label="Alter" value={spider.age}/>
+            <Stat label="Körperlänge" value={spider.size.body}/>
+            <Stat label="Spannweite" value={spider.size.span}/>
+          </div>
+        </div>
+      </div>
+      <div style={s.grid}>
+        <InfoCard title="Herkunft & Habitat">
+          <InfoRow label="Herkunft" value={spider.origin}/>
+          <InfoRow label="Habitat" value={spider.habitat}/>
+        </InfoCard>
+        <InfoCard title="Haltungsbedingungen">
+          <InfoRow label="Temperatur" value={spider.conditions.temp}/>
+          <InfoRow label="Luftfeuchtigkeit" value={spider.conditions.humidity}/>
+        </InfoCard>
+        <InfoCard title="Fütterung">
+          <InfoRow label="Letzte Fütterung" value={spider.lastFed}/>
+          <InfoRow label="Tage zurück" value={`${daysSince(spider.lastFed)} Tage`}/>
+          <div style={{marginTop:'10px',height:'6px',borderRadius:'3px',background:'var(--bg3)',overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${Math.min(100, daysSince(spider.lastFed)/14*100)}%`,background: daysSince(spider.lastFed)>10?'var(--accent2)':'var(--accent)',borderRadius:'3px',transition:'width 0.5s'}}/>
+          </div>
+          <p style={{fontSize:'10px',color:'var(--fg3)',marginTop:'5px',fontFamily:'var(--font-body)'}}>Empfehlung: alle 10–14 Tage</p>
+        </InfoCard>
+        <InfoCard title="Häutungsprotokoll">
+          {spider.molts.length === 0 ? <p style={{color:'var(--fg3)',fontSize:'12px',fontFamily:'var(--font-body)'}}>Keine Einträge</p> :
+            spider.molts.map((m,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
+                <div style={{width:'8px',height:'8px',borderRadius:'50%',background:'var(--accent)',flexShrink:0,opacity:0.6+i*0.1}}/>
+                <span style={{fontFamily:'var(--font-body)',fontSize:'13px',color:'var(--fg)'}}>{m}</span>
+                {i===spider.molts.length-1 && <span style={{fontSize:'10px',color:'var(--accent)',marginLeft:'auto',fontFamily:'var(--font-body)'}}>LETZTE</span>}
+              </div>
+            ))
+          }
+        </InfoCard>
+        <InfoCard title="Notizen" wide>
+          <p style={{fontFamily:'var(--font-body)',fontSize:'14px',color:'var(--fg2)',lineHeight:'1.7',textWrap:'pretty'}}>{spider.notes}</p>
+        </InfoCard>
+      </div>
+    </div>
+  );
+}
+function Stat({ label, value }) {
+  return (
+    <div style={{textAlign:'center'}}>
+      <div style={{fontFamily:'var(--font-head)',fontSize:'24px',fontWeight:300,color:'var(--fg)',lineHeight:1}}>{value}</div>
+      <div style={{fontFamily:'var(--font-body)',fontSize:'10px',color:'var(--fg3)',letterSpacing:'0.08em',marginTop:'4px',textTransform:'uppercase'}}>{label}</div>
+    </div>
+  );
+}
+function InfoCard({ title, children, wide }) {
+  return (
+    <div style={{background:'var(--bg2)',border:'1px solid var(--card-border)',borderRadius:'var(--card-radius)',padding:'20px 22px',gridColumn: wide ? '1 / -1' : undefined}}>
+      <h3 style={{fontFamily:'var(--font-head)',fontSize:'16px',fontWeight:400,color:'var(--accent)',marginBottom:'14px',letterSpacing:'0.05em'}}>{title}</h3>
+      {children}
+    </div>
+  );
+}
+function InfoRow({ label, value }) {
+  return (
+    <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px',gap:'16px'}}>
+      <span style={{fontFamily:'var(--font-body)',fontSize:'12px',color:'var(--fg3)',letterSpacing:'0.05em',textTransform:'uppercase',flexShrink:0}}>{label}</span>
+      <span style={{fontFamily:'var(--font-body)',fontSize:'13px',color:'var(--fg)',textAlign:'right'}}>{value}</span>
+    </div>
+  );
+}
+const detailStyles = {
+  page: { maxWidth:'1100px', margin:'0 auto', padding:'32px 32px 80px' },
+  back: { background:'none', border:'none', color:'var(--fg3)', fontFamily:'var(--font-body)', fontSize:'12px', cursor:'pointer', letterSpacing:'0.06em', marginBottom:'28px', padding:0 },
+  hero: { display:'grid', gridTemplateColumns:'380px 1fr', gap:'40px', marginBottom:'36px', alignItems:'center' },
+  heroImage: { borderRadius:'var(--card-radius)', overflow:'hidden', aspectRatio:'1/1', position:'relative', border:'1px solid var(--card-border)' },
+  heroInfo: { },
+  name: { fontFamily:'var(--font-head)', fontSize:'56px', fontWeight:300, color:'var(--fg)', lineHeight:1, marginBottom:'8px', letterSpacing:'-0.01em' },
+  species: { fontFamily:'var(--font-body)', fontSize:'14px', color:'var(--fg2)', fontStyle:'italic', marginBottom:'4px' },
+  commonName: { fontFamily:'var(--font-body)', fontSize:'12px', color:'var(--fg3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'28px' },
+  statsRow: { display:'flex', gap:'32px', marginTop:'8px', paddingTop:'24px', borderTop:'1px solid var(--card-border)' },
+  grid: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }
+};
+
+// ── LOGIN PAGE ─────────────────────────────────────────────────────────────────
+function LoginPage({ onLogin }) {
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+  const handleSubmit = e => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => {
+      if (pw === 'admin123') { onLogin(); }
+      else { setErr('Falsches Passwort.'); setLoading(false); }
+    }, 600);
+  };
+  const s = loginStyles;
+  return (
+    <div style={s.page}>
+      <div style={s.card}>
+        <svg viewBox="0 0 40 40" width="40" height="40" style={{margin:'0 auto 20px',display:'block'}}>
+          <circle cx="20" cy="20" r="7" fill="var(--accent)" opacity="0.9"/>
+          {[0,1,2,3].map(i=><line key={i} x1="20" y1="20" x2={20+17*Math.cos(i*Math.PI/4)} y2={20+17*Math.sin(i*Math.PI/4)} stroke="var(--accent)" strokeOpacity="0.4" strokeWidth="1"/>)}
+          {[9,14].map(r=><circle key={r} cx="20" cy="20" r={r} fill="none" stroke="var(--accent)" strokeOpacity="0.25" strokeWidth="1"/>)}
+        </svg>
+        <h2 style={s.title}>Admin Login</h2>
+        <p style={s.sub}>Nur für autorisierte Halter</p>
+        <form onSubmit={handleSubmit} style={s.form}>
+          <label style={s.label}>Passwort</label>
+          <input type="password" style={s.input} value={pw} onChange={e=>{setPw(e.target.value);setErr('');}} placeholder="••••••••"/>
+          {err && <p style={s.err}>{err}</p>}
+          <button type="submit" style={s.btn} disabled={loading}>{loading ? 'Prüfe …' : 'Einloggen'}</button>
+        </form>
+        <p style={s.hint}>Demo-Passwort: <code style={{color:'var(--accent)',fontFamily:'monospace'}}>admin123</code></p>
+      </div>
+    </div>
+  );
+}
+const loginStyles = {
+  page: { display:'flex', alignItems:'center', justifyContent:'center', minHeight:'calc(100vh - 60px)', padding:'40px' },
+  card: { background:'var(--bg2)', border:'1px solid var(--card-border)', borderRadius:'var(--card-radius)', padding:'48px 40px', width:'100%', maxWidth:'360px', textAlign:'center' },
+  title: { fontFamily:'var(--font-head)', fontSize:'28px', fontWeight:400, color:'var(--fg)', marginBottom:'6px' },
+  sub: { fontFamily:'var(--font-body)', fontSize:'12px', color:'var(--fg3)', marginBottom:'28px', letterSpacing:'0.06em' },
+  form: { textAlign:'left' },
+  label: { display:'block', fontFamily:'var(--font-body)', fontSize:'11px', color:'var(--fg3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:'6px' },
+  input: { width:'100%', background:'var(--bg)', border:'1px solid var(--card-border)', color:'var(--fg)', fontFamily:'var(--font-body)', fontSize:'14px', padding:'10px 14px', borderRadius:'var(--radius)', outline:'none', marginBottom:'6px' },
+  btn: { width:'100%', marginTop:'12px', background:'var(--accent)', color:'var(--bg)', border:'none', fontFamily:'var(--font-body)', fontSize:'13px', fontWeight:600, padding:'11px', borderRadius:'var(--radius)', cursor:'pointer', letterSpacing:'0.08em', transition:'opacity 0.2s' },
+  err: { fontSize:'12px', color:'var(--danger)', fontFamily:'var(--font-body)', marginTop:'4px' },
+  hint: { fontFamily:'var(--font-body)', fontSize:'11px', color:'var(--fg3)', marginTop:'24px' }
+};
+
+// ── ADMIN PAGE ─────────────────────────────────────────────────────────────────
+function AdminPage({ spiders, onAdd, onDelete }) {
+  const [form, setForm] = useState({ name:'', species:'', commonName:'', origin:'', habitat:'', bodySize:'', span:'', toxicity:'mild', sex:'Weibchen', age:'', tempMin:'', tempMax:'', humMin:'', humMax:'', notes:'', lastFed:'' });
+  const [saved, setSaved] = useState(false);
+  const s = adminStyles;
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const handleSubmit = e => {
+    e.preventDefault();
+    onAdd({
+      id: Date.now(),
+      name: form.name, species: form.species, commonName: form.commonName,
+      origin: form.origin, habitat: form.habitat,
+      size: { body: form.bodySize, span: form.span },
+      toxicity: form.toxicity, sex: form.sex, age: form.age,
+      conditions: { temp: `${form.tempMin}–${form.tempMax} °C`, humidity: `${form.humMin}–${form.humMax} %` },
+      lastFed: form.lastFed || new Date().toISOString().slice(0,10),
+      molts: [], notes: form.notes,
+      color: `oklch(0.50 0.15 ${Math.floor(Math.random()*360)})`
+    });
+    setSaved(true);
+    setForm({ name:'', species:'', commonName:'', origin:'', habitat:'', bodySize:'', span:'', toxicity:'mild', sex:'Weibchen', age:'', tempMin:'', tempMax:'', humMin:'', humMax:'', notes:'', lastFed:'' });
+    setTimeout(()=>setSaved(false), 3000);
+  };
+
+  return (
+    <div style={s.page}>
+      <h1 style={s.title}>Admin</h1>
+      <div style={s.layout}>
+        {/* Form */}
+        <div style={s.formCard}>
+          <h2 style={s.section}>Neue Spinne hinzufügen</h2>
+          <form onSubmit={handleSubmit}>
+            <div style={s.group}>
+              <h3 style={s.groupTitle}>Grunddaten</h3>
+              <div style={s.row}>
+                <Field label="Name" required><input style={s.input} required value={form.name} onChange={e=>set('name',e.target.value)} placeholder="z.B. Helene"/></Field>
+                <Field label="Wissenschaftl. Name" required><input style={s.input} required value={form.species} onChange={e=>set('species',e.target.value)} placeholder="z.B. Theraphosa blondi"/></Field>
+              </div>
+              <Field label="Gemeiner Name"><input style={s.input} value={form.commonName} onChange={e=>set('commonName',e.target.value)} placeholder="z.B. Goliath Bird Eater"/></Field>
+              <div style={s.row}>
+                <Field label="Geschlecht">
+                  <select style={s.input} value={form.sex} onChange={e=>set('sex',e.target.value)}>
+                    <option>Weibchen</option><option>Männchen</option><option>Unbekannt</option>
+                  </select>
+                </Field>
+                <Field label="Alter"><input style={s.input} value={form.age} onChange={e=>set('age',e.target.value)} placeholder="z.B. 3 Jahre"/></Field>
+              </div>
+            </div>
+            <div style={s.group}>
+              <h3 style={s.groupTitle}>Herkunft</h3>
+              <Field label="Herkunftsland / -region"><input style={s.input} value={form.origin} onChange={e=>set('origin',e.target.value)} placeholder="z.B. Venezuela, Brasilien"/></Field>
+              <Field label="Habitat"><input style={s.input} value={form.habitat} onChange={e=>set('habitat',e.target.value)} placeholder="z.B. Tropischer Regenwald"/></Field>
+            </div>
+            <div style={s.group}>
+              <h3 style={s.groupTitle}>Maße & Giftigkeit</h3>
+              <div style={s.row}>
+                <Field label="Körperlänge"><input style={s.input} value={form.bodySize} onChange={e=>set('bodySize',e.target.value)} placeholder="z.B. 8 cm"/></Field>
+                <Field label="Spannweite"><input style={s.input} value={form.span} onChange={e=>set('span',e.target.value)} placeholder="z.B. 18 cm"/></Field>
+              </div>
+              <Field label="Giftigkeit">
+                <select style={s.input} value={form.toxicity} onChange={e=>set('toxicity',e.target.value)}>
+                  <option value="sehr mild">Sehr mild</option>
+                  <option value="mild">Mild</option>
+                  <option value="mittel">Mittel</option>
+                  <option value="stark">Stark</option>
+                </select>
+              </Field>
+            </div>
+            <div style={s.group}>
+              <h3 style={s.groupTitle}>Haltungsbedingungen</h3>
+              <div style={s.row}>
+                <Field label="Temp. Min (°C)"><input style={s.input} type="number" value={form.tempMin} onChange={e=>set('tempMin',e.target.value)} placeholder="24"/></Field>
+                <Field label="Temp. Max (°C)"><input style={s.input} type="number" value={form.tempMax} onChange={e=>set('tempMax',e.target.value)} placeholder="28"/></Field>
+              </div>
+              <div style={s.row}>
+                <Field label="Luftf. Min (%)"><input style={s.input} type="number" value={form.humMin} onChange={e=>set('humMin',e.target.value)} placeholder="70"/></Field>
+                <Field label="Luftf. Max (%)"><input style={s.input} type="number" value={form.humMax} onChange={e=>set('humMax',e.target.value)} placeholder="80"/></Field>
+              </div>
+              <Field label="Letzte Fütterung"><input style={s.input} type="date" value={form.lastFed} onChange={e=>set('lastFed',e.target.value)}/></Field>
+            </div>
+            <div style={s.group}>
+              <h3 style={s.groupTitle}>Notizen</h3>
+              <Field label="Persönliche Notizen"><textarea style={{...s.input,height:'90px',resize:'vertical'}} value={form.notes} onChange={e=>set('notes',e.target.value)} placeholder="Beobachtungen, Besonderheiten …"/></Field>
+            </div>
+            {saved && <div style={s.success}>✓ Spinne erfolgreich hinzugefügt!</div>}
+            <button type="submit" style={s.btn}>Spinne hinzufügen</button>
+          </form>
+        </div>
+        {/* List */}
+        <div>
+          <h2 style={s.section}>Bestand ({spiders.length})</h2>
+          <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+            {spiders.map(sp=>(
+              <div key={sp.id} style={s.listItem}>
+                <div style={{width:'32px',height:'32px',borderRadius:'3px',overflow:'hidden',flexShrink:0}}>
+                  <SpiderPlaceholder color={sp.color} name={sp.name+'a'}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:'var(--font-head)',fontSize:'16px',color:'var(--fg)'}}>{sp.name}</div>
+                  <div style={{fontFamily:'var(--font-body)',fontSize:'11px',color:'var(--fg3)',fontStyle:'italic'}}>{sp.species}</div>
+                </div>
+                <button onClick={()=>onDelete(sp.id)} style={s.deleteBtn}>✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function Field({ label, children, required }) {
+  return (
+    <div style={{marginBottom:'14px'}}>
+      <label style={{display:'block',fontFamily:'var(--font-body)',fontSize:'11px',color:'var(--fg3)',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'5px'}}>
+        {label}{required && <span style={{color:'var(--accent)',marginLeft:'3px'}}>*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+const adminStyles = {
+  page: { maxWidth:'1200px', margin:'0 auto', padding:'40px 32px 80px' },
+  title: { fontFamily:'var(--font-head)', fontSize:'42px', fontWeight:300, color:'var(--fg)', marginBottom:'32px' },
+  layout: { display:'grid', gridTemplateColumns:'1fr 360px', gap:'32px', alignItems:'start' },
+  formCard: { background:'var(--bg2)', border:'1px solid var(--card-border)', borderRadius:'var(--card-radius)', padding:'32px' },
+  section: { fontFamily:'var(--font-head)', fontSize:'22px', fontWeight:400, color:'var(--fg)', marginBottom:'20px' },
+  group: { marginBottom:'24px', paddingBottom:'24px', borderBottom:'1px solid var(--card-border)' },
+  groupTitle: { fontFamily:'var(--font-head)', fontSize:'16px', fontWeight:400, color:'var(--accent)', marginBottom:'14px', letterSpacing:'0.04em' },
+  row: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' },
+  input: { width:'100%', background:'var(--bg)', border:'1px solid var(--card-border)', color:'var(--fg)', fontFamily:'var(--font-body)', fontSize:'13px', padding:'9px 12px', borderRadius:'var(--radius)', outline:'none' },
+  btn: { width:'100%', marginTop:'8px', background:'var(--accent)', color:'var(--bg)', border:'none', fontFamily:'var(--font-body)', fontSize:'13px', fontWeight:600, padding:'12px', borderRadius:'var(--radius)', cursor:'pointer', letterSpacing:'0.08em' },
+  success: { background:'var(--bg3)', border:'1px solid var(--accent)', borderRadius:'var(--radius)', padding:'10px 14px', fontFamily:'var(--font-body)', fontSize:'13px', color:'var(--accent)', marginBottom:'12px' },
+  listItem: { display:'flex', alignItems:'center', gap:'12px', background:'var(--bg2)', border:'1px solid var(--card-border)', borderRadius:'var(--card-radius)', padding:'10px 14px' },
+  deleteBtn: { background:'none', border:'1px solid var(--card-border)', color:'var(--fg3)', fontSize:'11px', cursor:'pointer', padding:'4px 8px', borderRadius:'2px', transition:'color 0.2s, border-color 0.2s' }
+};
+
+// ── APP ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState(() => localStorage.getItem('spidey_page') || 'home');
+  const [selected, setSelected] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [spiders, setSpiders] = useState(INITIAL_SPIDERS);
+  const [gridCols, setGridCols] = useState(TWEAK_DEFAULTS.gridCols || 3);
+
+  useEffect(() => { localStorage.setItem('spidey_page', page); }, [page]);
+  useEffect(() => {
+    window.__setGrid = setGridCols;
+    window.__setTheme = () => {};
+    window.__logout = () => { setIsAdmin(false); setPage('home'); };
+  }, []);
+
+  const handleLogin = () => { setIsAdmin(true); setPage('admin'); };
+  const handleAdd = sp => setSpiders(prev => [...prev, sp]);
+  const handleDelete = id => setSpiders(prev => prev.filter(s => s.id !== id));
+
+  return (
+    <>
+      <Navbar page={page} setPage={setPage} isAdmin={isAdmin}/>
+      {page === 'home' && <HomePage spiders={spiders} setPage={setPage} setSelectedSpider={setSelected} gridCols={gridCols}/>}
+      {page === 'detail' && <DetailPage spider={selected} setPage={setPage}/>}
+      {page === 'login' && <LoginPage onLogin={handleLogin}/>}
+      {page === 'admin' && isAdmin && <AdminPage spiders={spiders} onAdd={handleAdd} onDelete={handleDelete}/>}
+      {page === 'admin' && !isAdmin && <LoginPage onLogin={handleLogin}/>}
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
