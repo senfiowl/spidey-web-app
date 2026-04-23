@@ -203,6 +203,18 @@ function ViewMode({
 
   const [pendingProfile, setPendingProfile] = useState<string | null>(null)
   const [pendingRemove, setPendingRemove] = useState<string | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (lightboxIndex === null) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIndex(null)
+      if (e.key === 'ArrowRight') setLightboxIndex(i => ((i ?? 0) + 1) % gallery.length)
+      if (e.key === 'ArrowLeft') setLightboxIndex(i => ((i ?? 0) - 1 + gallery.length) % gallery.length)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [lightboxIndex, gallery.length])
 
   const handleSetProfile = async (url: string) => {
     setPendingProfile(url)
@@ -495,7 +507,7 @@ function ViewMode({
               }}
             >
               {gallery.map((url, i) => (
-                <div key={i} style={thumbStyle}>
+                <div key={i} style={{ ...thumbStyle, cursor: 'pointer' }} onClick={() => setLightboxIndex(i)}>
                   <Image src={url} alt="" fill style={{ objectFit: 'cover' }} />
                   {url === spider.image_url && (
                     <div
@@ -581,6 +593,126 @@ function ViewMode({
           </InfoCard>
         )}
       </div>
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && (
+        <div
+          onClick={() => setLightboxIndex(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.93)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Prev */}
+          {gallery.length > 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); setLightboxIndex(i => ((i ?? 0) - 1 + gallery.length) % gallery.length) }}
+              style={{
+                position: 'absolute',
+                left: 20,
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#fff',
+                fontSize: '20px',
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ←
+            </button>
+          )}
+
+          {/* Image */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={gallery[lightboxIndex]}
+            alt=""
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              borderRadius: 'var(--card-radius)',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
+            }}
+          />
+
+          {/* Next */}
+          {gallery.length > 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); setLightboxIndex(i => ((i ?? 0) + 1) % gallery.length) }}
+              style={{
+                position: 'absolute',
+                right: 20,
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#fff',
+                fontSize: '20px',
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              →
+            </button>
+          )}
+
+          {/* Close */}
+          <button
+            onClick={() => setLightboxIndex(null)}
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: '#fff',
+              fontSize: '16px',
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+
+          {/* Counter */}
+          {gallery.length > 1 && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 24,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                fontFamily: 'var(--font-body)',
+                fontSize: '12px',
+                color: 'rgba(255,255,255,0.5)',
+                letterSpacing: '0.08em',
+              }}
+            >
+              {lightboxIndex + 1} / {gallery.length}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
