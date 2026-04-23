@@ -1,0 +1,18 @@
+{
+  "name": "Morticia",
+  "species": "Chromatopelma cyaneopubescens",
+  "commonName": "Green Bottle Blue",
+  "sex": "Weibchen",
+  "age": "4 Jahre",
+  "origin": "Venezuela",
+  "habitat": "Halbwüste, trockene Küstenregionen",
+  "bodySize": "6 cm",
+  "span": "15 cm",
+  "toxicity": "mild",
+  "tempMin": "24",
+  "tempMax": "29",
+  "humMin": "50",
+  "humMax": "65",
+  "lastFed": "2026-04-10",
+  "notes": "Eine der farbenprächtigsten Vogelspinnen überhaupt – metallisch blaue Beine, orangefarbener Hinterleib. Baut ausgedehnte Gespinste. Eher scheu, flüchtet bei Störung. Frisst gut, zuletzt drei Grillen."
+}
