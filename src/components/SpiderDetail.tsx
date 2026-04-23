@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SpiderPlaceholder from './SpiderPlaceholder'
 import { updateSpider, setProfileImage, removeGalleryImage } from '@/app/admin/actions'
+import { usePreviewMode } from '@/lib/use-preview-mode'
 import { daysSince, toxBadgeColor, getSpiderColor } from '@/lib/utils'
 import type { Spider } from '@/types'
 
@@ -1164,6 +1165,7 @@ function EditMode({
 export default function SpiderDetail({ spider }: { spider: Spider }) {
   const [isEditing, setIsEditing] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const { preview } = usePreviewMode()
   const router = useRouter()
 
   useEffect(() => {
@@ -1174,6 +1176,8 @@ export default function SpiderDetail({ spider }: { spider: Spider }) {
     } = supabase.auth.onAuthStateChange((_e, session) => setIsAdmin(!!session))
     return () => subscription.unsubscribe()
   }, [])
+
+  const effectiveAdmin = isAdmin && !preview
 
   if (isEditing) {
     return (
@@ -1191,7 +1195,7 @@ export default function SpiderDetail({ spider }: { spider: Spider }) {
   return (
     <ViewMode
       spider={spider}
-      isAdmin={isAdmin}
+      isAdmin={effectiveAdmin}
       onEdit={() => setIsEditing(true)}
       onRefresh={() => router.refresh()}
     />

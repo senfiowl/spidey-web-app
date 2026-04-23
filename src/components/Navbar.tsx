@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { usePreviewMode } from '@/lib/use-preview-mode'
 
 function WebIcon() {
   return (
@@ -72,6 +73,7 @@ export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
+  const { preview, toggle } = usePreviewMode()
 
   useEffect(() => {
     const supabase = createClient()
@@ -147,6 +149,26 @@ export default function Navbar() {
           <NavLink href="/admin/login" active={pathname === '/admin/login'}>
             Admin Login
           </NavLink>
+        )}
+        {isAdmin && (
+          <button
+            onClick={toggle}
+            title={preview ? 'Admin-Ansicht wiederherstellen' : 'Als Besucher ansehen'}
+            style={{
+              background: preview ? 'var(--bg3)' : 'none',
+              border: `1px solid ${preview ? 'var(--accent2)' : 'var(--card-border)'}`,
+              color: preview ? 'var(--accent2)' : 'var(--fg3)',
+              fontFamily: 'var(--font-body)',
+              fontSize: '11px',
+              letterSpacing: '0.06em',
+              padding: '5px 12px',
+              cursor: 'pointer',
+              borderRadius: 'var(--radius)',
+              transition: 'all 0.2s',
+            }}
+          >
+            {preview ? 'Besucher-Ansicht' : 'Vorschau'}
+          </button>
         )}
         {isAdmin && (
           <button

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import SpiderCard from './SpiderCard'
 import { createClient } from '@/lib/supabase/client'
+import { usePreviewMode } from '@/lib/use-preview-mode'
 import { daysSince } from '@/lib/utils'
 import type { Spider } from '@/types'
 
@@ -16,6 +17,7 @@ export default function SpiderGrid({ spiders }: { spiders: Spider[] }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<string>('all')
   const [isAdmin, setIsAdmin] = useState(false)
+  const { preview } = usePreviewMode()
 
   useEffect(() => {
     const supabase = createClient()
@@ -93,7 +95,7 @@ export default function SpiderGrid({ spiders }: { spiders: Spider[] }) {
 
       <div className="spider-grid">
         {filtered.map(spider => (
-          <SpiderCard key={spider.id} spider={spider} isAdmin={isAdmin} />
+          <SpiderCard key={spider.id} spider={spider} isAdmin={isAdmin && !preview} />
         ))}
         {filtered.length === 0 && (
           <p
