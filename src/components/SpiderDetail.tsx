@@ -5,11 +5,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SpiderPlaceholder from './SpiderPlaceholder'
-import { updateSpider } from '@/app/admin/actions'
+import { updateSpider, setProfileImage, removeGalleryImage } from '@/app/admin/actions'
 import { daysSince, toxBadgeColor, getSpiderColor } from '@/lib/utils'
 import type { Spider } from '@/types'
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function parseRange(range: string | null): [string, string] {
   if (!range) return ['', '']
@@ -188,15 +188,44 @@ function ViewMode({
   spider,
   isAdmin,
   onEdit,
+  onRefresh,
 }: {
   spider: Spider
   isAdmin: boolean
   onEdit: () => void
+  onRefresh: () => void
 }) {
   const days = daysSince(spider.last_fed)
   const barWidth = Math.min(100, (days / 14) * 100)
   const barColor = days > 10 ? 'var(--accent2)' : 'var(--accent)'
   const molts: string[] = spider.molts || []
+  const gallery: string[] = spider.image_urls ?? []
+
+  const [pendingProfile, setPendingProfile] = useState<string | null>(null)
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null)
+
+  const handleSetProfile = async (url: string) => {
+    setPendingProfile(url)
+    await setProfileImage(spider.id, url)
+    onRefresh()
+    setPendingProfile(null)
+  }
+
+  const handleRemove = async (url: string) => {
+    if (!confirm('Bild aus der Galerie entfernen?')) return
+    setPendingRemove(url)
+    await removeGalleryImage(spider.id, url)
+    onRefresh()
+    setPendingRemove(null)
+  }
+
+  const thumbStyle: React.CSSProperties = {
+    position: 'relative',
+    aspectRatio: '1/1',
+    borderRadius: 'var(--card-radius)',
+    overflow: 'hidden',
+    border: '1px solid var(--card-border)',
+  }
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 32px 80px' }}>
@@ -454,6 +483,103 @@ function ViewMode({
             {spider.notes || 'Keine Notizen vorhanden.'}
           </p>
         </InfoCard>
+
+        {/* Gallery */}
+        {gallery.length > 0 && (
+          <InfoCard title="Galerie" wide>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: '10px',
+              }}
+            >
+              {gallery.map((url, i) => (
+                <div key={i} style={thumbStyle}>
+                  <Image src={url} alt="" fill style={{ objectFit: 'cover' }} />
+                  {url === spider.image_url && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 6,
+                        left: 6,
+                        background: 'var(--accent)',
+                        color: 'var(--bg)',
+                        fontSize: '9px',
+                        fontFamily: 'var(--font-body)',
+                        letterSpacing: '0.06em',
+                        padding: '2px 6px',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      PROFIL
+                    </div>
+                  )}
+                  {isAdmin && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        padding: '6px 8px',
+                        background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-end',
+                      }}
+                    >
+                      {url !== spider.image_url ? (
+                        <button
+                          onClick={() => handleSetProfile(url)}
+                          disabled={pendingProfile === url}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#fff',
+                            fontFamily: 'var(--font-body)',
+                            fontSize: '10px',
+                            letterSpacing: '0.05em',
+                            cursor: 'pointer',
+                            padding: 0,
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          {pendingProfile === url ? '…' : 'Als Profilbild'}
+                        </button>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            color: 'rgba(255,255,255,0.4)',
+                            fontFamily: 'var(--font-body)',
+                          }}
+                        >
+                          Profilbild
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleRemove(url)}
+                        disabled={pendingRemove === url}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'rgba(255,255,255,0.6)',
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          padding: 0,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {pendingRemove === url ? '…' : '✕'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </InfoCard>
+        )}
       </div>
     </div>
   )
@@ -471,32 +597,65 @@ function EditMode({
   onSaved: () => void
 }) {
   const [saving, setSaving] = useState(false)
-  const [imageUrl, setImageUrl] = useState(spider.image_url ?? '')
-  const [uploadingImage, setUploadingImage] = useState(false)
+  const [profileUrl, setProfileUrl] = useState(spider.image_url ?? '')
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(() => {
+    const urls = spider.image_urls ?? []
+    if (urls.length === 0 && spider.image_url) return [spider.image_url]
+    return urls
+  })
+  const [uploadingProfile, setUploadingProfile] = useState(false)
+  const [uploadingGallery, setUploadingGallery] = useState(false)
 
   const [tempMin, tempMax] = parseRange(spider.temp_range)
   const [humMin, humMax] = parseRange(spider.humidity_range)
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploadingImage(true)
+  const uploadFile = async (file: File): Promise<string | null> => {
     const supabase = createClient()
     const ext = file.name.split('.').pop()
-    const path = `spiders/${Date.now()}.${ext}`
+    const path = `spiders/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
     const { error } = await supabase.storage.from('spider-images').upload(path, file)
-    if (!error) {
-      const { data } = supabase.storage.from('spider-images').getPublicUrl(path)
-      setImageUrl(data.publicUrl)
+    if (error) return null
+    const { data } = supabase.storage.from('spider-images').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  const handleProfileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingProfile(true)
+    const url = await uploadFile(file)
+    if (url) {
+      setGalleryUrls(prev => (prev.includes(url) ? prev : [...prev, url]))
+      setProfileUrl(url)
     }
-    setUploadingImage(false)
+    setUploadingProfile(false)
+  }
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setUploadingGallery(true)
+    for (const file of files) {
+      const url = await uploadFile(file)
+      if (url) setGalleryUrls(prev => (prev.includes(url) ? prev : [...prev, url]))
+    }
+    setUploadingGallery(false)
+  }
+
+  const handleRemoveFromGallery = (url: string) => {
+    setGalleryUrls(prev => {
+      const next = prev.filter(u => u !== url)
+      if (profileUrl === url) setProfileUrl(next[0] ?? '')
+      return next
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setSaving(true)
     const fd = new FormData(e.currentTarget)
-    fd.set('imageUrl', imageUrl)
+    fd.set('imageUrl', profileUrl)
+    fd.set('imageUrls', JSON.stringify(galleryUrls))
     try {
       await updateSpider(spider.id, fd)
       onSaved()
@@ -510,6 +669,14 @@ function EditMode({
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: '12px',
+  }
+
+  const galleryThumb: React.CSSProperties = {
+    position: 'relative',
+    aspectRatio: '1/1',
+    borderRadius: 'var(--card-radius)',
+    overflow: 'hidden',
+    border: '1px solid var(--card-border)',
   }
 
   return (
@@ -578,9 +745,8 @@ function EditMode({
         </div>
       </div>
 
-      {/* Hero: image + basic fields */}
+      {/* Hero */}
       <div className="detail-hero" style={{ marginBottom: '24px' }}>
-        {/* Image */}
         <div>
           <div
             style={{
@@ -591,8 +757,8 @@ function EditMode({
               border: '1px solid var(--card-border)',
             }}
           >
-            {imageUrl ? (
-              <Image src={imageUrl} alt={spider.name} fill style={{ objectFit: 'cover' }} />
+            {profileUrl ? (
+              <Image src={profileUrl} alt={spider.name} fill style={{ objectFit: 'cover' }} />
             ) : (
               <SpiderPlaceholder color={getSpiderColor(spider.sex)} name={spider.name + 'd'} />
             )}
@@ -609,15 +775,15 @@ function EditMode({
               marginBottom: '5px',
             }}
           >
-            Foto ändern
+            Profilbild ändern
           </label>
           <input
             type="file"
             accept="image/*"
-            onChange={handleImageUpload}
+            onChange={handleProfileUpload}
             style={{ ...inputStyle, padding: '6px 12px', cursor: 'pointer' }}
           />
-          {uploadingImage && (
+          {uploadingProfile && (
             <p
               style={{
                 fontSize: '12px',
@@ -631,7 +797,6 @@ function EditMode({
           )}
         </div>
 
-        {/* Basic fields */}
         <div>
           <Field label="Name *">
             <input
@@ -706,38 +871,18 @@ function EditMode({
         <EditSection title="Haltungsbedingungen">
           <div style={twoCol}>
             <Field label="Temp. Min (°C)">
-              <input
-                name="tempMin"
-                type="number"
-                defaultValue={tempMin}
-                style={inputStyle}
-              />
+              <input name="tempMin" type="number" defaultValue={tempMin} style={inputStyle} />
             </Field>
             <Field label="Temp. Max (°C)">
-              <input
-                name="tempMax"
-                type="number"
-                defaultValue={tempMax}
-                style={inputStyle}
-              />
+              <input name="tempMax" type="number" defaultValue={tempMax} style={inputStyle} />
             </Field>
           </div>
           <div style={twoCol}>
             <Field label="Luftf. Min (%)">
-              <input
-                name="humMin"
-                type="number"
-                defaultValue={humMin}
-                style={inputStyle}
-              />
+              <input name="humMin" type="number" defaultValue={humMin} style={inputStyle} />
             </Field>
             <Field label="Luftf. Max (%)">
-              <input
-                name="humMax"
-                type="number"
-                defaultValue={humMax}
-                style={inputStyle}
-              />
+              <input name="humMax" type="number" defaultValue={humMax} style={inputStyle} />
             </Field>
           </div>
         </EditSection>
@@ -771,6 +916,112 @@ function EditMode({
           </Field>
         </EditSection>
 
+        {/* Gallery management */}
+        <EditSection title="Galerie">
+          {galleryUrls.length > 0 && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                gap: '8px',
+                marginBottom: '14px',
+              }}
+            >
+              {galleryUrls.map((url, i) => (
+                <div key={i} style={galleryThumb}>
+                  <Image src={url} alt="" fill style={{ objectFit: 'cover' }} />
+                  {url === profileUrl && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 4,
+                        left: 4,
+                        background: 'var(--accent)',
+                        color: 'var(--bg)',
+                        fontSize: '8px',
+                        fontFamily: 'var(--font-body)',
+                        letterSpacing: '0.06em',
+                        padding: '2px 5px',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      PROFIL
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '4px 6px',
+                      background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    {url !== profileUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setProfileUrl(url)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#fff',
+                          fontSize: '9px',
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-body)',
+                          padding: 0,
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        Profil
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFromGallery(url)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.7)',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        marginLeft: 'auto',
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <Field label="Bilder hinzufügen">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleGalleryUpload}
+              style={{ ...inputStyle, padding: '6px 12px', cursor: 'pointer' }}
+            />
+            {uploadingGallery && (
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--fg3)',
+                  marginTop: '6px',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                Wird hochgeladen …
+              </p>
+            )}
+          </Field>
+        </EditSection>
       </div>
     </form>
   )
@@ -806,6 +1057,11 @@ export default function SpiderDetail({ spider }: { spider: Spider }) {
   }
 
   return (
-    <ViewMode spider={spider} isAdmin={isAdmin} onEdit={() => setIsEditing(true)} />
+    <ViewMode
+      spider={spider}
+      isAdmin={isAdmin}
+      onEdit={() => setIsEditing(true)}
+      onRefresh={() => router.refresh()}
+    />
   )
 }

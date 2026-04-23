@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS spiders (
   molts          text[],
   notes          text,
   image_url      text,
+  image_urls     text[] DEFAULT '{}',
   color          text,
   created_at     timestamptz DEFAULT now()
 );

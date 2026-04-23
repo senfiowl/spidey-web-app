@@ -11,6 +11,10 @@ export async function addSpider(formData: FormData) {
   const humMin = formData.get('humMin') as string
   const humMax = formData.get('humMax') as string
 
+  const imageUrlsRaw = formData.get('imageUrls') as string
+  const imageUrls: string[] = imageUrlsRaw ? JSON.parse(imageUrlsRaw) : []
+  const profileUrl = imageUrls[0] ?? null
+
   const { error } = await supabase.from('spiders').insert({
     name: formData.get('name') as string,
     species: formData.get('species') as string,
@@ -28,7 +32,8 @@ export async function addSpider(formData: FormData) {
       (formData.get('lastFed') as string) || new Date().toISOString().slice(0, 10),
     molts: [],
     notes: (formData.get('notes') as string) || null,
-    image_url: (formData.get('imageUrl') as string) || null,
+    image_url: profileUrl,
+    image_urls: imageUrls,
     color: (formData.get('color') as string) || randomOklchColor(),
   })
 
@@ -43,14 +48,18 @@ export async function deleteSpider(id: string) {
 
   const { data: spider } = await supabase
     .from('spiders')
-    .select('image_url')
+    .select('image_url, image_urls')
     .eq('id', id)
     .single()
 
-  if (spider?.image_url) {
-    const path = spider.image_url.split('/spider-images/')[1]
-    if (path) await supabase.storage.from('spider-images').remove([path])
-  }
+  const allUrls = new Set<string>([
+    ...(spider?.image_urls ?? []),
+    ...(spider?.image_url ? [spider.image_url] : []),
+  ])
+  const paths = Array.from(allUrls)
+    .map(url => url.split('/spider-images/')[1])
+    .filter(Boolean)
+  if (paths.length) await supabase.storage.from('spider-images').remove(paths)
 
   const { error } = await supabase.from('spiders').delete().eq('id', id)
   if (error) throw new Error(error.message)
@@ -72,6 +81,10 @@ export async function updateSpider(id: string, formData: FormData) {
     .map(s => s.trim())
     .filter(Boolean)
 
+  const imageUrlsRaw = formData.get('imageUrls') as string
+  const imageUrls: string[] = imageUrlsRaw ? JSON.parse(imageUrlsRaw) : []
+  const profileUrl = (formData.get('imageUrl') as string) || null
+
   const { error } = await supabase
     .from('spiders')
     .update({
@@ -90,11 +103,46 @@ export async function updateSpider(id: string, formData: FormData) {
       last_fed: (formData.get('lastFed') as string) || null,
       molts,
       notes: (formData.get('notes') as string) || null,
-      image_url: (formData.get('imageUrl') as string) || null,
+      image_url: profileUrl,
+      image_urls: imageUrls,
       color: (formData.get('color') as string) || null,
     })
     .eq('id', id)
 
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/spiders/${id}`)
+  revalidatePath('/')
+  revalidatePath('/admin')
+}
+
+export async function setProfileImage(id: string, url: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from('spiders').update({ image_url: url }).eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/spiders/${id}`)
+  revalidatePath('/')
+}
+
+export async function removeGalleryImage(id: string, url: string) {
+  const supabase = await createClient()
+
+  const { data: spider } = await supabase
+    .from('spiders')
+    .select('image_url, image_urls')
+    .eq('id', id)
+    .single()
+
+  const newUrls = (spider?.image_urls ?? []).filter((u: string) => u !== url)
+  const newProfile = spider?.image_url === url ? (newUrls[0] ?? null) : spider?.image_url
+
+  const path = url.split('/spider-images/')[1]
+  if (path) await supabase.storage.from('spider-images').remove([path])
+
+  const { error } = await supabase
+    .from('spiders')
+    .update({ image_urls: newUrls, image_url: newProfile })
+    .eq('id', id)
   if (error) throw new Error(error.message)
 
   revalidatePath(`/spiders/${id}`)

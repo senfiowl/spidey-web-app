@@ -16,6 +16,7 @@ export interface Spider {
   molts: string[]
   notes: string
   image_url?: string
+  image_urls?: string[]
   color: string
   created_at: string
 }
